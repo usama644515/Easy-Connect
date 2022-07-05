@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "412156727484",
+    "project_id": "easy-connect-c23da",
+    "storage_bucket": "easy-connect-c23da.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412156727484:android:9f4d10fe54239a2ee940b9",
+        "android_client_info": {
+          "package_name": "com.example.easyconnect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "412156727484-tm5sktf4kcliebmhjeoh3oujqv4m87la.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIY48TvkIPv6toW0o_8Hkq1aQuDHgqrJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "412156727484-tm5sktf4kcliebmhjeoh3oujqv4m87la.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
