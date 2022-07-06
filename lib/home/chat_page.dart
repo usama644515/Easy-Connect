@@ -158,7 +158,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('chatRoom')
-                      // .where("chatId", arrayContains: "${_auth.currentUser!.uid}")
+                      .where("chatId", arrayContains: _auth.currentUser!.uid)
                       .orderBy('time', descending: true)
                       .snapshots(),
                   builder: (BuildContext context,
@@ -190,7 +190,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                   var msgCount;
                                   bool msgCheck;
                                   try {
-                                    msgCount = data.get('${_auth.currentUser?.uid}_unreadMsg');
+                                    msgCount = data.get(
+                                        '${_auth.currentUser?.uid}_unreadMsg');
                                     msgCheck = true;
                                   } on StateError catch (e) {
                                     msgCheck = false;
@@ -462,11 +463,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             actions: [
               CupertinoDialogAction(
                 child: const Text('Log Out'),
-                onPressed: () {
-                  setStatus(false);
-                  FirebaseAuth.instance.signOut();
-                  GoogleSignIn().signOut();
-                  Get.offAll(() => const LoginScreen());
+                onPressed: () async {
+                  await firestore
+                      .collection('Users')
+                      .doc(_auth.currentUser?.uid)
+                      .set({
+                    "Online": false,
+                  }, SetOptions(merge: true)).then((value) {
+                    FirebaseAuth.instance.signOut();
+                    GoogleSignIn().signOut();
+                    Get.offAll(() => const LoginScreen());
+                  });
                 },
               ),
               CupertinoDialogAction(

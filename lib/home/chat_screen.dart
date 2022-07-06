@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easyconnect/home/PdfViewer.dart';
 import 'package:easyconnect/home/image_view.dart';
 import 'package:file_picker/file_picker.dart';
 // import 'package:file_picker/file_picker.dart';
@@ -74,15 +75,16 @@ class _ChatScreenState extends State<ChatScreen> {
       'uid': _auth.currentUser?.uid,
       'idTo': widget.idTo,
       'type': 'text',
-      'userView': true,
-      'adminView': true,
+      'view': [(_auth.currentUser!.uid), '${widget.idTo}'],
       'msgRead': false,
     });
 
     FirebaseFirestore.instance.collection("chatRoom").doc(widget.docId).set({
       'time': DateTime.now(),
       '${widget.idTo}_unreadMsg': FieldValue.increment(1),
-      "${_auth.currentUser?.uid}": widget.idTo
+      "${_auth.currentUser?.uid}": widget.idTo,
+      widget.idTo: "${_auth.currentUser?.uid}",
+      'chatId': [(_auth.currentUser!.uid), '${widget.idTo}']
     }, SetOptions(merge: true));
 
     _msgTextController.clear();
@@ -156,15 +158,15 @@ class _ChatScreenState extends State<ChatScreen> {
       'time': DateTime.now().millisecondsSinceEpoch,
       'uid': _auth.currentUser?.uid,
       'idTo': widget.idTo,
-      'userView': true,
-      'adminView': true,
+      'view': [(_auth.currentUser!.uid), '${widget.idTo}'],
       'msgRead': false,
     }).then((value) {
       FirebaseFirestore.instance.collection("chatRoom").doc(widget.docId).set({
         'time': DateTime.now(),
         '${widget.idTo}_unreadMsg': FieldValue.increment(1),
         "${_auth.currentUser?.uid}": widget.idTo,
-        widget.idTo: "${_auth.currentUser?.uid}"
+        widget.idTo: "${_auth.currentUser?.uid}",
+        'chatId': [(_auth.currentUser!.uid), '${widget.idTo}']
       }, SetOptions(merge: true));
       Navigator.pop(context);
     });
@@ -423,7 +425,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 .collection('chatRoom')
                 .doc(widget.docId)
                 .collection('chat')
-                .where('${_auth.currentUser?.uid}_View', isEqualTo: true)
+                .where('view', arrayContains: _auth.currentUser?.uid)
                 .orderBy('time', descending: true)
                 .snapshots(),
             builder:
@@ -768,12 +770,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                   child:
                                                                       GestureDetector(
                                                                     onTap: () {
-                                                                      // Navigator.push(
-                                                                      //     context,
-                                                                      //     MaterialPageRoute(
-                                                                      //         builder: (context) => PdfViewer(
-                                                                      //               url: document['attachment'],
-                                                                      //             )));
+                                                                      Navigator.push(
+                                                                          context,
+                                                                          MaterialPageRoute(
+                                                                              builder: (context) => PdfViewer(
+                                                                                    url: document['attachment'],
+                                                                                  )));
                                                                     },
                                                                     child:
                                                                         // admin side
@@ -817,7 +819,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           children: [
                                                                             Row(
                                                                               children: [
-                                                                                Image.asset('assets/icons/pdf.png', width: 30.0),
+                                                                                Image.asset('assets/images/pdf.png', width: 30.0),
                                                                                 const SizedBox(width: 5.0),
                                                                                 SizedBox(
                                                                                   width: MediaQuery.of(context).size.width * 0.4,
@@ -1069,12 +1071,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                   child:
                                                                       GestureDetector(
                                                                     onTap: () {
-                                                                      // Navigator.push(
-                                                                      //     context,
-                                                                      //     MaterialPageRoute(
-                                                                      //         builder: (context) => PdfViewer(
-                                                                      //               url: document['attachment'],
-                                                                      //             )));
+                                                                      Navigator.push(
+                                                                          context,
+                                                                          MaterialPageRoute(
+                                                                              builder: (context) => PdfViewer(
+                                                                                    url: document['attachment'],
+                                                                                  )));
                                                                     },
                                                                     child:
                                                                         Container(
@@ -1104,7 +1106,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           children: [
                                                                             Row(
                                                                               children: [
-                                                                                Image.asset('assets/icons/pdf.png', width: 30.0),
+                                                                                Image.asset('assets/images/pdf.png', width: 30.0),
                                                                                 const SizedBox(width: 5.0),
                                                                                 SizedBox(
                                                                                   width: MediaQuery.of(context).size.width * 0.4,
@@ -1355,8 +1357,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         .doc(widget.docId)
                         .collection('chat')
                         .doc(id)
-                        .set({'${_auth.currentUser?.uid}_View': false},
-                            SetOptions(merge: true)).then((_) {
+                        .set({
+                      'view':
+                          FieldValue.arrayRemove(['${_auth.currentUser?.uid}'])
+                    }, SetOptions(merge: true)).then((_) {
                       print("Message Deleted");
                       Fluttertoast.showToast(
                           msg: "Message Deleted",

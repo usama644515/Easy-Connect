@@ -5,6 +5,7 @@ import 'package:easyconnect/app_color.dart';
 import 'package:easyconnect/home/chat_page.dart';
 import 'package:easyconnect/home_screen.dart';
 import 'package:easyconnect/loading.dart';
+import 'package:easyconnect/screen_loading.dart';
 import 'package:easyconnect/welcome/sign_up.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -77,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
       'Phone No': null,
       'uid': FirebaseAuth.instance.currentUser!.uid,
       'Photourl': auth.currentUser?.photoURL,
-      'date': DateTime.now(),
+      // 'date': DateTime.now(),
     };
     await firestore
         .collection("Users")
@@ -122,6 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
           accessToken: googleSignInAuthentication.accessToken);
 
       // Getting users credential
+      ScreenLoading();
       UserCredential result = await auth.signInWithCredential(authCredential);
       User? user = result.user;
 

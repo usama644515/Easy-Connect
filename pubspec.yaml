@@ -49,6 +49,7 @@ dependencies:
   file_picker: ^4.5.1
   photo_view: ^0.13.0
   get: ^4.6.1
+  syncfusion_flutter_pdfviewer: ^19.4.56-beta
   
 
 dev_dependencies:
