@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class PdfViewer extends StatefulWidget {
-  final url;
-  const PdfViewer({this.url});
+  final url, name;
+  const PdfViewer({this.url, this.name});
 
   @override
   _PdfViewerState createState() => _PdfViewerState();
@@ -18,13 +18,16 @@ class _PdfViewerState extends State<PdfViewer> {
     return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF60c4b9),
-          title: const Text("PDF"),
-          centerTitle: true,
+          backgroundColor: Theme.of(context).splashColor,
+          title: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: Text(widget.name, overflow: TextOverflow.ellipsis,),
+          ),
+          // centerTitle: true,
         ),
         body: Container(
             child: widget.url == null
-                ? Center(
+                ? const Center(
                     child: Text('PDF'),
                   )
                 : SfPdfViewer.network(

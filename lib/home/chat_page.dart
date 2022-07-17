@@ -98,6 +98,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).backgroundColor,
       appBar: AppBar(
         iconTheme: const IconThemeData(),
+        elevation: 1,
+        backgroundColor: Theme.of(context).splashColor,
         title: Text("Message Box",
             style: TextStyle(
               color: Theme.of(context).hintColor,
@@ -144,8 +146,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ),
           ),
         ],
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+        
+       
       ),
       body: Stack(
         children: [
@@ -284,20 +286,46 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                                     snapshot.data?.docs[0]
                                                         as DocumentSnapshot<
                                                             Object?>;
-                                                return SizedBox(
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .width *
-                                                      0.6,
-                                                  child: Text(
-                                                    document['details'],
-                                                    style: const TextStyle(
-                                                        fontSize: 15.0,
-                                                        fontWeight:
-                                                            FontWeight.w600),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
+                                                return Row(
+                                                  children: [
+                                                    document['uid'] ==
+                                                            _auth.currentUser
+                                                                ?.uid
+                                                        ? Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                        .only(
+                                                                    right: 3.0),
+                                                            child: SvgPicture.asset(
+                                                                'assets/images/read.svg',
+                                                                color: document[
+                                                                            'msgRead'] ==
+                                                                        true
+                                                                    ? Colors
+                                                                        .blue
+                                                                    : Colors
+                                                                        .grey,
+                                                                width: 17.0),
+                                                          )
+                                                        : Container(),
+                                                    SizedBox(
+                                                      width:
+                                                          MediaQuery.of(context)
+                                                                  .size
+                                                                  .width *
+                                                              0.45,
+                                                      child: Text(
+                                                        document['details'],
+                                                        style: const TextStyle(
+                                                            fontSize: 15.0,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 );
                                               }),
                                           trailing: msgCheck == true

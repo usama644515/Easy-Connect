@@ -50,6 +50,10 @@ dependencies:
   photo_view: ^0.13.0
   get: ^4.6.1
   syncfusion_flutter_pdfviewer: ^19.4.56-beta
+  flutter_sound: ^9.2.13
+  permission_handler: ^10.0.0
+  audioplayers: ^1.0.1
+  
   
 
 dev_dependencies:

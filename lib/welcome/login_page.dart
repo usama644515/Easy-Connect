@@ -5,7 +5,6 @@ import 'package:easyconnect/app_color.dart';
 import 'package:easyconnect/home/chat_page.dart';
 import 'package:easyconnect/home_screen.dart';
 import 'package:easyconnect/loading.dart';
-import 'package:easyconnect/screen_loading.dart';
 import 'package:easyconnect/welcome/sign_up.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -87,24 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
         .whenComplete(() {});
   }
 
-  showLoaderDialog(BuildContext context) {
-    AlertDialog alert = AlertDialog(
-      content: new Row(
-        children: [
-          CircularProgressIndicator(),
-          Container(
-              margin: EdgeInsets.only(left: 15), child: Text("Loading...")),
-        ],
-      ),
-    );
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
-    );
-  }
+  
 
   // function to implement the google signin
 
@@ -123,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
           accessToken: googleSignInAuthentication.accessToken);
 
       // Getting users credential
-      ScreenLoading();
+      showLoaderDialog(context, 'Signing In');
       UserCredential result = await auth.signInWithCredential(authCredential);
       User? user = result.user;
 
@@ -175,6 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() {
         loading = false;
+        Navigator.pop(context);
       });
       if (e.code == 'user-not-found') {
         Fluttertoast.showToast(
@@ -389,20 +372,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         // use the information provided
 
                         setState(() {
-                          loading = true;
+                          // loading = true;
+                          showLoaderDialog(context, 'Signing In');
                           login(email, password);
                         });
                       }
                     },
-                    child: loading == true
-                        ? Loading()
-                        : Text(
-                            'LOGIN',
-                            style: TextStyle(
-                              fontSize: 15.0,
-                              color: Colors.white,
-                            ),
-                          ),
+                    child: Text(
+                      'LOGIN',
+                      style: TextStyle(
+                        fontSize: 15.0,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),

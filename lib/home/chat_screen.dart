@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easyconnect/home/PdfViewer.dart';
+import 'package:easyconnect/home/audioplay.dart';
 import 'package:easyconnect/home/image_view.dart';
 import 'package:file_picker/file_picker.dart';
 // import 'package:file_picker/file_picker.dart';
@@ -13,11 +15,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_sound/public/flutter_sound_recorder.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:get/get_state_manager/src/rx_flutter/rx_notifier.dart';
 import 'package:image_picker/image_picker.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 // import 'package:url_launcher/url_launcher.dart';
 // import 'PdfViewer.dart';
@@ -37,6 +42,90 @@ class _ChatScreenState extends State<ChatScreen> {
   FirebaseAuth _auth = FirebaseAuth.instance;
   bool _validate = false;
   final TextEditingController _msgTextController = new TextEditingController();
+  final recorder = FlutterSoundRecorder();
+  bool isRecorderReady = false;
+  // final audioPlayer = AudioPlayer();
+  // bool isPlaying = false;
+  // Duration duration = Duration.zero;
+  // Duration position = Duration.zero;
+  Future record() async {
+    if (!isRecorderReady) return;
+    await recorder.startRecorder(toFile: 'audio1');
+  }
+
+  Future stop() async {
+    if (!isRecorderReady) return;
+    final path = await recorder.stopRecorder();
+    final audioFile = File(path!);
+    Navigator.pop(context);
+    uploadVoiceMsg(audioFile);
+    print('Recorded audio: $audioFile');
+  }
+
+  Future initRecorder() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      throw 'Microphone Permission not granted';
+    }
+    await recorder.openRecorder();
+    isRecorderReady = true;
+    recorder.setSubscriptionDuration(
+      const Duration(milliseconds: 500),
+    );
+  }
+
+  uploadVoiceMsg(var file) async {
+    String? audioUrl;
+    showLoaderDialog(context);
+    Reference reference = FirebaseStorage.instance.ref().child(file.path);
+    UploadTask uploadTask = reference.putFile(
+      file,
+      SettableMetadata(
+        contentType: 'audio/mp3',
+        customMetadata: <String, String>{'file': 'audio'},
+      ),
+    );
+    TaskSnapshot snapshot = await uploadTask;
+    await snapshot.ref.getDownloadURL().then((value) async {
+      audioUrl = value;
+      print(value);
+      // Fluttertoast.showToast(
+      //     msg: '$audioUrl',
+      //     toastLength: Toast.LENGTH_SHORT,
+      //     gravity: ToastGravity.CENTER,
+      //     timeInSecForIosWeb: 1,
+      //     backgroundColor: Colors.white,
+      //     textColor: Colors.black,
+      //     fontSize: 16.0);
+      // imageListUrl.add(value);
+      firestore
+          .collection('chatRoom')
+          .doc(widget.docId)
+          .collection('chat')
+          .doc()
+          .set({
+        'attachment': audioUrl,
+        'details': 'voiceMsg',
+        'time': DateTime.now().millisecondsSinceEpoch,
+        'uid': '${_auth.currentUser?.uid}',
+        'idTo': widget.idTo,
+        'type': 'voiceMsg',
+        'view': [(_auth.currentUser!.uid), '${widget.idTo}'],
+        'msgRead': false,
+      });
+    }).then((value) {
+      FirebaseFirestore.instance.collection("chatRoom").doc(widget.docId).set({
+        'time': DateTime.now(),
+        'adminunreadMsg': FieldValue.increment(1),
+        "${_auth.currentUser?.uid}": widget.idTo,
+        widget.idTo: "${_auth.currentUser?.uid}"
+      }, SetOptions(merge: true));
+      Navigator.pop(context);
+    }).then((value) {
+      // Navigator.pop(context);
+      return "";
+    });
+  }
 
   String returnTimeStamp(int messageTimeStamp) {
     String resultString = '';
@@ -207,8 +296,8 @@ class _ChatScreenState extends State<ChatScreen> {
         'uid': '${_auth.currentUser?.uid}',
         'idTo': widget.idTo,
         'type': 'image',
-        'userView': true,
-        'adminView': true,
+        'view': [(_auth.currentUser!.uid), '${widget.idTo}'],
+        'msgRead': false,
       });
     }).then((value) {
       FirebaseFirestore.instance.collection("chatRoom").doc(widget.docId).set({
@@ -291,9 +380,31 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     // TODO: implement initState
+    initRecorder();
     username = widget.username;
     getUserData();
+    // audioPlayer.onPlayerStateChanged.listen((state) {
+    //   setState(() {
+    //     isPlaying = state == PlayerState.playing;
+    //   });
+    // });
+    // audioPlayer.onDurationChanged.listen((newDuration) {
+    //   setState(() {
+    //     duration = newDuration;
+    //   });
+    // });
+    // audioPlayer.onPositionChanged.listen((newPosition) {
+    //   setState(() {
+    //     position = newPosition;
+    //   });
+    // });
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    recorder.closeRecorder();
+    super.dispose();
   }
 
   String _datetimeFormatter(String _timestamp) {
@@ -320,7 +431,7 @@ class _ChatScreenState extends State<ChatScreen> {
       textDirection: ui.TextDirection.ltr,
       child: Scaffold(
         appBar: AppBar(
-          elevation: 0,
+          elevation: 1,
           automaticallyImplyLeading: false,
           backgroundColor: Theme.of(context).splashColor,
           flexibleSpace: SafeArea(
@@ -403,7 +514,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
+                    onTap: () async {
                       // userprofile(context, widget.userimage, widget.username,
                       //     joinedDate, lastname, email, "");
                     },
@@ -456,7 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: Row(
                             children: [
                               Container(
-                                width: MediaQuery.of(context).size.width * 0.84,
+                                width: MediaQuery.of(context).size.width * 0.81,
                                 decoration: BoxDecoration(
                                     color: Theme.of(context)
                                         .buttonColor
@@ -516,23 +627,30 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  // Navigator.push(
-                                  //   context,
-                                  //   MaterialPageRoute(
-                                  //     builder: (context) => ChatBotCollection(
-                                  //         insertChatBot: true,
-                                  //         docId: widget.docId),
-                                  //   ),
-                                  // );
+                                onTap: () async {
+                                  _showBottomSheet(context);
+                                  await record();
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.only(
-                                      left: 10.0, right: 0.0),
-                                  child: SvgPicture.asset(
-                                      'assets/icons/chatbot.svg',
-                                      color: Theme.of(context).hintColor,
-                                      height: 35.0),
+                                      left: 5.0, right: 0.0),
+                                  child: Container(
+                                    height: MediaQuery.of(context).size.width *
+                                        0.12,
+                                    width: MediaQuery.of(context).size.width *
+                                        0.12,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(context).splashColor,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: SvgPicture.asset(
+                                        'assets/images/microphone.svg',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -633,11 +751,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                   ui.Color
                                                                       .fromARGB(
                                                                           255,
-                                                                          217,
-                                                                          115,
-                                                                          243),
-                                                                  Color(
-                                                                      0xff0086f5),
+                                                                          74,
+                                                                          110,
+                                                                          228),
+                                                                  ui.Color
+                                                                      .fromARGB(
+                                                                          255,
+                                                                          118,
+                                                                          180,
+                                                                          231),
                                                                 ],
                                                               ),
                                                               borderRadius: BorderRadius.only(
@@ -774,6 +896,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           context,
                                                                           MaterialPageRoute(
                                                                               builder: (context) => PdfViewer(
+                                                                                    name: document.get('fileName'),
                                                                                     url: document['attachment'],
                                                                                   )));
                                                                     },
@@ -796,10 +919,14 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           colors: [
                                                                             ui.Color.fromARGB(
                                                                                 255,
-                                                                                217,
-                                                                                115,
-                                                                                243),
-                                                                            Color(0xff0086f5),
+                                                                                74,
+                                                                                110,
+                                                                                228),
+                                                                            ui.Color.fromARGB(
+                                                                                255,
+                                                                                118,
+                                                                                180,
+                                                                                231),
                                                                           ],
                                                                         ),
                                                                         borderRadius: BorderRadius.only(
@@ -841,58 +968,51 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                     ),
                                                                   ),
                                                                 )
-                                                              : Padding(
-                                                                  padding: const EdgeInsets
-                                                                          .only(
-                                                                      bottom:
-                                                                          0),
-                                                                  child:
-                                                                      GestureDetector(
-                                                                    onTap: () {
-                                                                      open(
-                                                                          context,
-                                                                          0,
-                                                                          document[
-                                                                              'attachment']);
-                                                                    },
-                                                                    child:
-                                                                        CachedNetworkImage(
-                                                                      imageUrl:
-                                                                          "${document['attachment'][0]}",
-                                                                      imageBuilder:
-                                                                          (context, imageProvider) =>
+                                                              : document['type'] ==
+                                                                      'voiceMsg'
+                                                                  ? AudioPlay(
+                                                                      url: document[
+                                                                          'attachment'])
+                                                                  : Padding(
+                                                                      padding: const EdgeInsets
+                                                                              .only(
+                                                                          bottom:
+                                                                              0),
+                                                                      child:
+                                                                          GestureDetector(
+                                                                        onTap:
+                                                                            () {
+                                                                          open(
+                                                                              context,
+                                                                              0,
+                                                                              document['attachment']);
+                                                                        },
+                                                                        child:
+                                                                            CachedNetworkImage(
+                                                                          imageUrl:
+                                                                              "${document['attachment'][0]}",
+                                                                          imageBuilder: (context, imageProvider) =>
                                                                               Container(
-                                                                        height: size.height *
-                                                                            0.30,
-                                                                        width: size.width -
-                                                                            size.width *
-                                                                                0.30,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          borderRadius: const BorderRadius.only(
-                                                                              topLeft: Radius.circular(15),
-                                                                              bottomLeft: Radius.circular(15),
-                                                                              bottomRight: Radius.circular(15)),
-                                                                          image:
-                                                                              DecorationImage(
-                                                                            image:
-                                                                                imageProvider,
-                                                                            fit:
-                                                                                BoxFit.cover,
+                                                                            height:
+                                                                                size.height * 0.30,
+                                                                            width:
+                                                                                size.width - size.width * 0.30,
+                                                                            decoration:
+                                                                                BoxDecoration(
+                                                                              borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15), bottomRight: Radius.circular(15)),
+                                                                              image: DecorationImage(
+                                                                                image: imageProvider,
+                                                                                fit: BoxFit.cover,
+                                                                              ),
+                                                                            ),
                                                                           ),
+                                                                          placeholder: (context, url) =>
+                                                                              const CircularProgressIndicator(),
+                                                                          errorWidget: (context, url, error) =>
+                                                                              const Icon(Icons.error),
                                                                         ),
                                                                       ),
-                                                                      placeholder:
-                                                                          (context, url) =>
-                                                                              const CircularProgressIndicator(),
-                                                                      errorWidget: (context,
-                                                                              url,
-                                                                              error) =>
-                                                                          const Icon(
-                                                                              Icons.error),
                                                                     ),
-                                                                  ),
-                                                                ),
                                                           // Padding(
                                                           //   padding:
                                                           //       const EdgeInsets
@@ -1076,6 +1196,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                           MaterialPageRoute(
                                                                               builder: (context) => PdfViewer(
                                                                                     url: document['attachment'],
+                                                                                    name: document.get('fileName'),
                                                                                   )));
                                                                     },
                                                                     child:
@@ -1249,7 +1370,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: Row(
                             children: [
                               Container(
-                                width: MediaQuery.of(context).size.width * 0.84,
+                                width: MediaQuery.of(context).size.width * 0.81,
                                 decoration: BoxDecoration(
                                     color: Theme.of(context)
                                         .buttonColor
@@ -1309,23 +1430,30 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  // Navigator.push(
-                                  //   context,
-                                  //   MaterialPageRoute(
-                                  //     builder: (context) => ChatBotCollection(
-                                  //         insertChatBot: true,
-                                  //         docId: widget.docId),
-                                  //   ),
-                                  // );
+                                onTap: () async {
+                                  _showBottomSheet(context);
+                                  await record();
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.only(
-                                      left: 10.0, right: 0.0),
-                                  child: SvgPicture.asset(
-                                      'assets/icons/chatbot.svg',
-                                      color: Theme.of(context).hintColor,
-                                      height: 35.0),
+                                      left: 5.0, right: 0.0),
+                                  child: Container(
+                                    height: MediaQuery.of(context).size.width *
+                                        0.12,
+                                    width: MediaQuery.of(context).size.width *
+                                        0.12,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(context).splashColor,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: SvgPicture.asset(
+                                        'assets/images/microphone.svg',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1386,5 +1514,60 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           );
         });
+  }
+
+  _showBottomSheet(context) {
+    showModalBottomSheet(
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20.0),
+          topRight: Radius.circular(20.0),
+          bottomLeft: Radius.circular(20.0),
+          bottomRight: Radius.circular(20.0),
+        ),
+      ),
+      context: context,
+      builder: (context) => Container(
+        margin: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.all(
+            Radius.circular(20.0),
+          ),
+          color: Theme.of(context).backgroundColor,
+        ),
+        height: 210,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 20.0, right: 20.0),
+          child: Column(children: [
+            const SizedBox(height: 10.0),
+            StreamBuilder<RecordingDisposition>(
+                stream: recorder.onProgress,
+                builder: (context, snapshot) {
+                  final duration = snapshot.hasData
+                      ? snapshot.data!.duration
+                      : Duration.zero;
+                  String twoDigits(int n) => n.toString().padLeft(2, '0');
+                  final twoDigitsMinutes =
+                      twoDigits(duration.inMinutes.remainder(60));
+                  final twoDigitsSeconds =
+                      twoDigits(duration.inSeconds.remainder(60));
+                  return Text('$twoDigitsMinutes : $twoDigitsSeconds');
+                }),
+            GestureDetector(
+              onTap: () async {
+                await stop();
+              },
+              child: Container(
+                height: 20,
+                width: 40,
+                color: Colors.blue,
+                child: Text('Stop'),
+              ),
+            )
+          ]),
+        ),
+      ),
+    );
   }
 }
