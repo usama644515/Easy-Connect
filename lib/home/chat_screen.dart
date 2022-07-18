@@ -15,10 +15,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_sound/public/flutter_sound_recorder.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:get/get_state_manager/src/rx_flutter/rx_notifier.dart';
 import 'package:image_picker/image_picker.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -60,6 +60,12 @@ class _ChatScreenState extends State<ChatScreen> {
     Navigator.pop(context);
     uploadVoiceMsg(audioFile);
     print('Recorded audio: $audioFile');
+  }
+
+  Future deleteVoice() async {
+    if (!isRecorderReady) return;
+    final path = await recorder.stopRecorder();
+    Navigator.pop(context);
   }
 
   Future initRecorder() async {
@@ -112,6 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'type': 'voiceMsg',
         'view': [(_auth.currentUser!.uid), '${widget.idTo}'],
         'msgRead': false,
+        'senderImage': _auth.currentUser?.photoURL,
       });
     }).then((value) {
       FirebaseFirestore.instance.collection("chatRoom").doc(widget.docId).set({
@@ -628,6 +635,17 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                               GestureDetector(
                                 onTap: () async {
+                                  Fluttertoast.showToast(
+                          msg: "Press and hold",
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.CENTER,
+                          timeInSecForIosWeb: 1,
+                          backgroundColor: Colors.white,
+                          textColor: Colors.black,
+                          fontSize: 16.0);
+                                },
+                                onLongPress: () async {
+                                  HapticFeedback.vibrate();
                                   _showBottomSheet(context);
                                   await record();
                                 },
@@ -712,6 +730,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                         child: document['attachment'] == ""
                                             ? GestureDetector(
                                                 onLongPress: () {
+                                                  HapticFeedback.vibrate();
                                                   _showDeleteDialoge(
                                                       context, document.id);
                                                 },
@@ -972,7 +991,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                       'voiceMsg'
                                                                   ? AudioPlay(
                                                                       url: document[
-                                                                          'attachment'])
+                                                                          'attachment'],
+                                                                      userimage:
+                                                                          document[
+                                                                              'senderImage'])
                                                                   : Padding(
                                                                       padding: const EdgeInsets
                                                                               .only(
@@ -1249,59 +1271,56 @@ class _ChatScreenState extends State<ChatScreen> {
                                                                     ),
                                                                   ),
                                                                 )
-                                                              : Padding(
-                                                                  padding: const EdgeInsets
-                                                                          .only(
-                                                                      bottom:
-                                                                          0),
-                                                                  child:
-                                                                      GestureDetector(
-                                                                    onTap: () {
-                                                                      open(
-                                                                          context,
-                                                                          0,
+                                                              : document['type'] ==
+                                                                      'voiceMsg'
+                                                                  ? AudioPlay(
+                                                                      url: document[
+                                                                          'attachment'],
+                                                                      color:
+                                                                          'grey',
+                                                                      userimage:
                                                                           document[
-                                                                              'attachment']);
-                                                                    },
-                                                                    child:
-                                                                        CachedNetworkImage(
-                                                                      imageUrl:
-                                                                          "${document['attachment'][0]}",
-                                                                      imageBuilder:
-                                                                          (context, imageProvider) =>
+                                                                              'senderImage'])
+                                                                  : Padding(
+                                                                      padding: const EdgeInsets
+                                                                              .only(
+                                                                          bottom:
+                                                                              0),
+                                                                      child:
+                                                                          GestureDetector(
+                                                                        onTap:
+                                                                            () {
+                                                                          open(
+                                                                              context,
+                                                                              0,
+                                                                              document['attachment']);
+                                                                        },
+                                                                        child:
+                                                                            CachedNetworkImage(
+                                                                          imageUrl:
+                                                                              "${document['attachment'][0]}",
+                                                                          imageBuilder: (context, imageProvider) =>
                                                                               Container(
-                                                                        height: size.height *
-                                                                            0.30,
-                                                                        width: size.width -
-                                                                            size.width *
-                                                                                0.30,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          borderRadius: const BorderRadius.only(
-                                                                              topRight: Radius.circular(15),
-                                                                              bottomLeft: Radius.circular(15),
-                                                                              bottomRight: Radius.circular(15)),
-                                                                          image:
-                                                                              DecorationImage(
-                                                                            image:
-                                                                                imageProvider,
-                                                                            fit:
-                                                                                BoxFit.cover,
+                                                                            height:
+                                                                                size.height * 0.30,
+                                                                            width:
+                                                                                size.width - size.width * 0.30,
+                                                                            decoration:
+                                                                                BoxDecoration(
+                                                                              borderRadius: const BorderRadius.only(topRight: Radius.circular(15), bottomLeft: Radius.circular(15), bottomRight: Radius.circular(15)),
+                                                                              image: DecorationImage(
+                                                                                image: imageProvider,
+                                                                                fit: BoxFit.cover,
+                                                                              ),
+                                                                            ),
                                                                           ),
+                                                                          placeholder: (context, url) =>
+                                                                              const Center(child: CircularProgressIndicator()),
+                                                                          errorWidget: (context, url, error) =>
+                                                                              const Icon(Icons.error),
                                                                         ),
                                                                       ),
-                                                                      placeholder: (context,
-                                                                              url) =>
-                                                                          const Center(
-                                                                              child: CircularProgressIndicator()),
-                                                                      errorWidget: (context,
-                                                                              url,
-                                                                              error) =>
-                                                                          const Icon(
-                                                                              Icons.error),
                                                                     ),
-                                                                  ),
-                                                                ),
                                                           // Row(
                                                           //   mainAxisAlignment:
                                                           //       MainAxisAlignment
@@ -1431,6 +1450,16 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                               GestureDetector(
                                 onTap: () async {
+                                  Fluttertoast.showToast(
+                          msg: "Press and hold",
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.CENTER,
+                          timeInSecForIosWeb: 1,
+                          backgroundColor: Colors.white,
+                          textColor: Colors.black,
+                          fontSize: 16.0);
+                                },
+                                onLongPress: () async {
                                   _showBottomSheet(context);
                                   await record();
                                 },
@@ -1536,36 +1565,75 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           color: Theme.of(context).backgroundColor,
         ),
-        height: 210,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 20.0, right: 20.0),
-          child: Column(children: [
-            const SizedBox(height: 10.0),
-            StreamBuilder<RecordingDisposition>(
-                stream: recorder.onProgress,
-                builder: (context, snapshot) {
-                  final duration = snapshot.hasData
-                      ? snapshot.data!.duration
-                      : Duration.zero;
-                  String twoDigits(int n) => n.toString().padLeft(2, '0');
-                  final twoDigitsMinutes =
-                      twoDigits(duration.inMinutes.remainder(60));
-                  final twoDigitsSeconds =
-                      twoDigits(duration.inSeconds.remainder(60));
-                  return Text('$twoDigitsMinutes : $twoDigitsSeconds');
-                }),
-            GestureDetector(
-              onTap: () async {
-                await stop();
-              },
-              child: Container(
-                height: 20,
-                width: 40,
-                color: Colors.blue,
-                child: Text('Stop'),
+        height: 130,
+        child: Stack(
+          children: [
+            Positioned(
+              top: 15.0,
+              left: MediaQuery.of(context).size.width * 0.3,
+              right: MediaQuery.of(context).size.width * 0.3,
+              child: Column(children: [
+                const SizedBox(height: 10.0),
+                StreamBuilder<RecordingDisposition>(
+                    stream: recorder.onProgress,
+                    builder: (context, snapshot) {
+                      final duration = snapshot.hasData
+                          ? snapshot.data!.duration
+                          : Duration.zero;
+                      String twoDigits(int n) => n.toString().padLeft(2, '0');
+                      final twoDigitsMinutes =
+                          twoDigits(duration.inMinutes.remainder(60));
+                      final twoDigitsSeconds =
+                          twoDigits(duration.inSeconds.remainder(60));
+                      return Text(
+                        '$twoDigitsMinutes : $twoDigitsSeconds',
+                        style: const TextStyle(
+                            fontSize: 22.0, fontWeight: FontWeight.w600),
+                      );
+                    }),
+                const SizedBox(height: 15.0),
+                GestureDetector(
+                  onTap: () async {
+                    await stop();
+                  },
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.05,
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.fromARGB(255, 74, 110, 228),
+                          Color.fromARGB(255, 118, 180, 231),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.all(Radius.circular(15)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Send',
+                        style: TextStyle(
+                            fontSize: 17.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ),
+                )
+              ]),
+            ),
+            Positioned(
+              right: MediaQuery.of(context).size.width * 0.13,
+              top: 70,
+              child: GestureDetector(
+                onTap: () {
+                  deleteVoice();
+                },
+                child: const Icon(Icons.delete, size: 28.0),
               ),
-            )
-          ]),
+            ),
+          ],
         ),
       ),
     );
